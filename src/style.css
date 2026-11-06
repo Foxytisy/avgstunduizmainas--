@@ -1,0 +1,75 @@
+.clock { grid-area: clock; width: 219px; height: 219px; }
+.calendar { grid-area: calendar;}
+.quotes { grid-area: quotes; }
+.sports { grid-area: sports; }
+.izmainas { grid-area: izmainas; }
+.fotoarhivs { grid-area: fotoarhivs; }
+.konsultacijas { grid-area: konsultacijas; }
+
+body {
+    background-color: rgb(31, 33, 34);
+    display: flex;
+    justify-content: center;
+    margin: 0;
+}
+
+.main {
+    background-color: rgb(231, 231, 231);
+    width: 1280px;
+    height: 720px;
+    border-radius: 40px;
+    padding: 16px;
+}
+
+.clock-face {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.center-point {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    height: 8px;
+    width: 8px;
+    border-radius: 50%;
+    border: 2px solid black;
+    background-color: white;
+}
+
+.second-hand {
+    position: absolute;
+    left: calc(50% - 1px);
+    bottom: 50%;
+    width: 2px;
+    height: 100px;
+    border-radius: 1px;
+    background-color: rgb(213 30 30);
+    transform-origin: 50% 100%;
+    
+}
+
+.grid-container {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    row-gap: 16px;
+    column-gap: 16px;
+    grid-template-columns: 219px 1fr 219px 239px;
+    grid-template-rows: 219px 1fr 1fr;
+    grid-template-areas:
+        'clock calendar quotes sports'
+        'izmainas izmainas izmainas fotoarhivs'
+        'izmainas izmainas izmainas konsultacijas'
+}
+
+#widget {
+    background-color: rgb(246, 248, 249);
+    border-radius: 24px;
+    filter: drop-shadow(0px 2px 16px rgba(21, 21, 21, 0.16));
+    box-shadow: inset 0px 0px 8px rgba(32, 32, 32, 0.16);
+}
