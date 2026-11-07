@@ -9,27 +9,44 @@ function setClock() {
     const hourDeg = ((hours / 12) * 360);
 
     document.getElementById("second-hand")!.style.transform = `rotate(${secondDeg}deg)`;
-    //document.getElementById("minute-hand")!.style.transform = `rotate(${minuteDeg}deg)`;
-    //document.getElementById("hour-hand")!.style.transform = `rotate(${hourDeg}deg)`;
+    document.getElementById("minute-hand")!.style.transform = `rotate(${minuteDeg}deg)`;
+    document.getElementById("hour-hand")!.style.transform = `rotate(${hourDeg}deg)`;
 
     const secondHand = document.getElementById("second-hand")!;
+    const minuteHand = document.getElementById("minute-hand")!;
+    const hourHand = document.getElementById("hour-hand")!;
     
-    const anim = secondHand.animate(
+    const animsec = secondHand.animate(
     [{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }],
-    { duration: 60_000, iterations: Infinity, easing: "linear" }
+    { duration: 60000, iterations: Infinity, easing: "linear" }
+    );
+
+    const animmin = minuteHand.animate(
+    [{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }],
+    { duration: 3600000, iterations: Infinity, easing: "linear" }
+    );
+
+    const animh = hourHand.animate(
+    [{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }],
+    { duration: 43200000, iterations: Infinity, easing: "linear" }
     );
 
 function sync() {
     const now = new Date();
-    anim.currentTime = now.getSeconds() * 1000 + now.getMilliseconds();
+    const ms = now.getMilliseconds();
+    const s = now.getSeconds();
+    const m = now.getMinutes();
+    const h = now.getHours() % 12;
+
+    animsec.currentTime = s * 1000 + ms;
+    animmin.currentTime = (m * 60 + s) * 1000 + ms;
+    animh.currentTime = ((h * 60 + m) * 60 + s) * 1000 + ms;
+
 }
 
-sync();
-setInterval(sync, 60_000);
-document.addEventListener("visibilitychange", sync);
-
-    console.log(secondDeg)
+    sync();
+    setInterval(sync, 60_000);
+    document.addEventListener("visibilitychange", sync);
 }
 
-setInterval(setClock, 1000);
 setClock();

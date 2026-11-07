@@ -1,4 +1,4 @@
-.clock { grid-area: clock; width: 219px; height: 219px; }
+.clock { grid-area: clock; width: 219px; height: 219px; overflow: hidden; }
 .calendar { grid-area: calendar;}
 .quotes { grid-area: quotes; }
 .sports { grid-area: sports; }
@@ -21,10 +21,14 @@ body {
     padding: 16px;
 }
 
+/* Pulksteņa widget daļa */
 .clock-face {
     width: 100%;
     height: 100%;
     position: relative;
+    background-image: url(../assets/avg-clockface.webp);
+    background-position: center;
+    background-size: 100% 100%;
 }
 
 .center-point {
@@ -53,6 +57,35 @@ body {
     
 }
 
+.minute-hand {
+    position: absolute;
+    transform-origin: 50% 100%;
+    left: calc(50% - 4px);
+    bottom: 50%;
+    width: 8px;
+    height: 100px;
+    border-radius: 4px;
+    background-color: white;
+    border: 2px solid black;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+
+.hour-hand {
+    position: absolute;
+    transform-origin: 50% 100%;
+    left: calc(50% - 4px);
+    bottom: 50%;
+    width: 8px;
+    height: 60px;
+    border-radius: 4px;
+    background-color: white;
+    border: 2px solid black;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+}
+
+/* Pašu widget/grid lietiņa */
 .grid-container {
     width: 100%;
     height: 100%;
