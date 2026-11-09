@@ -8,7 +8,7 @@ const weekDayTable = [
     { id: 4, value: "Ceturtdiena" },
     { id: 5, value: "Piektdiena" },
     { id: 6, value: "Sestdiena" },
-    { id: 7, value: "Svētdiena" },
+    { id: 0, value: "Svētdiena" },
 ];
 const monthTable = [
     { id: 0, value: "Janvāris" },
