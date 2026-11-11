@@ -8,9 +8,16 @@ interface Vardadienas {
     vardadienas: string;
 }
 
+interface Quotes {
+    quote: string;
+    author: string;
+}
+
 const skip = (n: number): string => String(n).padStart(1, "0");
 
-const db = new Map<string,string[]>();
+const vddb = new Map<string,string[]>();
+
+const qdb = new Map<string,string>();
 
 const weekDayTable: TableData[] = [
     { id: 1, value: "Pirmdiena" },
@@ -67,13 +74,54 @@ export async function loadVardadienas(url: string = "../assets/vardadienas.json"
             .split(",")
             .map(n => n.trim())
             .filter(Boolean);
-        db.set(key, [...(db.get(key) ?? []), ...names]);
+        vddb.set(key, [...(vddb.get(key) ?? []), ...names]);
 };
+}
+
+export async function loadQuotes(url: string = "../assets/quotes.json"): Promise<void> {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
+
+    const quotes: Quotes[] = await res.json();
+
+    for (const row of quotes) {
+        const quote = row.quote;
+        const author = row.author;
+        qdb.set(quote, author);
+};
+};
+
+
+
+export function getQuotes(): string {
+    const mapEntries = Array.from(qdb.entries());
+
+    const rand = getRandomInt(0, qdb.size);
+    console.log(rand)
+    const [quote, author] = mapEntries[rand]!;
+
+    return quote;
+}
+
+export function getAuthor(): string {
+    const mapEntries = Array.from(qdb.entries());
+
+    const rand = getRandomInt(0, qdb.size);
+    console.log(rand)
+    const [quote, author] = mapEntries[rand]!;
+
+    return author;
+}
+
+function getRandomInt(min: number, max: number): number {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 export function getVardadienas(date: Date = new Date()): string[] {
     const key = `${skip(date.getDate())}.${skip(date.getMonth() + 1)}.`;
-    const vardadienas = db.get(key) ?? [];
+    const vardadienas = vddb.get(key) ?? [];
     //console.log(key);
     return vardadienas;
 }
@@ -131,8 +179,16 @@ function sync() { //vnk, lai neuzsprāgst dators (cerams) + smukumam
     sync();
     setInterval(sync, 60_000);
     document.addEventListener("visibilitychange", sync);
-}
+};
+
+// Citāti
+
+function setQuote() {
+    document.getElementById("quotes")!.textContent=`"${getQuotes()}"`;
+    document.getElementById("author")!.textContent=`-${getAuthor()}`;
+};
 
 loadVardadienas().then(setNames).catch(console.error);
+loadQuotes().then(setQuote).catch(console.error);
 setClock();
 setDate();

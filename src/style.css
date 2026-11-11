@@ -1,4 +1,3 @@
-.quotes { grid-area: quotes; }
 .sports { grid-area: sports; }
 .izmainas { grid-area: izmainas; }
 .fotoarhivs { grid-area: fotoarhivs; }
@@ -180,6 +179,24 @@ p {
     height: 100%;
     object-fit: fill;
     border-radius: 1px;
+}
+
+/* Citāti */
+
+.quotes { 
+    grid-area: quotes;
+    align-content: center;
+    justify-items: center;
+    padding: 8px;
+}
+
+#author {
+    margin-top:8px;
+    font-weight: normal;
+}
+
+#quotes {
+    text-align: center;
 }
 
 /* Pašu widget/grid lietiņa */
