@@ -1,6 +1,7 @@
 ;
 const skip = (n) => String(n).padStart(1, "0");
-const db = new Map();
+const vddb = new Map();
+let quotes = [];
 const weekDayTable = [
     { id: 1, value: "Pirmdiena" },
     { id: 2, value: "Otrdiena" },
@@ -50,13 +51,23 @@ export async function loadVardadienas(url = "../assets/vardadienas.json") {
             .split(",")
             .map(n => n.trim())
             .filter(Boolean);
-        db.set(key, [...(db.get(key) ?? []), ...names]);
+        vddb.set(key, [...(vddb.get(key) ?? []), ...names]);
     }
     ;
 }
+export async function loadQuotes(url = "../assets/quotes.json") {
+    const res = await fetch(url);
+    if (!res.ok)
+        throw new Error(`Failed to load ${url}: ${res.status}`);
+    quotes = await res.json();
+}
+;
+export function getQuote() {
+    return quotes[Math.floor(Math.random() * quotes.length)];
+}
 export function getVardadienas(date = new Date()) {
     const key = `${skip(date.getDate())}.${skip(date.getMonth() + 1)}.`;
-    const vardadienas = db.get(key) ?? [];
+    const vardadienas = vddb.get(key) ?? [];
     //console.log(key);
     return vardadienas;
 }
@@ -94,7 +105,30 @@ function setClock() {
     setInterval(sync, 60_000);
     document.addEventListener("visibilitychange", sync);
 }
-loadVardadienas().then(setNames).catch(console.error);
+;
+// Citāti
+function setQuote() {
+    const { quoteText, quoteAuthor } = getQuote();
+    document.getElementById("quotes").textContent = `"${quoteText}"`;
+    document.getElementById("author").textContent = quoteAuthor ? `-${quoteAuthor}` : "";
+}
+;
+Promise.all([loadVardadienas(), loadQuotes()])
+    .then(refresh)
+    .catch(console.error);
 setClock();
-setDate();
+let refreshTime = 60000; //Refresh laiks 60 sec, var pēc tam mainīt, kad ir nepieciešams ātrāks refresh rate
+function refresh() {
+    try {
+        setNames();
+        setQuote();
+        setDate();
+    }
+    catch (any) {
+        console.error(any);
+    }
+    finally {
+        setTimeout(refresh, refreshTime);
+    }
+}
 //# sourceMappingURL=script.js.map

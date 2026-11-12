@@ -192,11 +192,13 @@ p {
 
 #author {
     margin-top:8px;
+    font-size: 18px;
     font-weight: normal;
 }
 
 #quotes {
     text-align: center;
+    font-size: 18px;
 }
 
 /* Pašu widget/grid lietiņa */

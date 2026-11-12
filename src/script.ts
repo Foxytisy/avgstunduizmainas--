@@ -9,15 +9,15 @@ interface Vardadienas {
 }
 
 interface Quotes {
-    quote: string;
-    author: string;
+    quoteText: string;
+    quoteAuthor: string;
 }
 
 const skip = (n: number): string => String(n).padStart(1, "0");
 
 const vddb = new Map<string,string[]>();
 
-const qdb = new Map<string,string>();
+let quotes: Quotes[] = [];
 
 const weekDayTable: TableData[] = [
     { id: 1, value: "Pirmdiena" },
@@ -82,41 +82,11 @@ export async function loadQuotes(url: string = "../assets/quotes.json"): Promise
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
 
-    const quotes: Quotes[] = await res.json();
-
-    for (const row of quotes) {
-        const quote = row.quote;
-        const author = row.author;
-        qdb.set(quote, author);
-};
+    quotes = await res.json();
 };
 
-
-
-export function getQuotes(): string {
-    const mapEntries = Array.from(qdb.entries());
-
-    const rand = getRandomInt(0, qdb.size);
-    console.log(rand)
-    const [quote, author] = mapEntries[rand]!;
-
-    return quote;
-}
-
-export function getAuthor(): string {
-    const mapEntries = Array.from(qdb.entries());
-
-    const rand = getRandomInt(0, qdb.size);
-    console.log(rand)
-    const [quote, author] = mapEntries[rand]!;
-
-    return author;
-}
-
-function getRandomInt(min: number, max: number): number {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+export function getQuote(): Quotes {
+    return quotes[Math.floor(Math.random() * quotes.length)]!;
 }
 
 export function getVardadienas(date: Date = new Date()): string[] {
@@ -184,11 +154,27 @@ function sync() { //vnk, lai neuzsprāgst dators (cerams) + smukumam
 // Citāti
 
 function setQuote() {
-    document.getElementById("quotes")!.textContent=`"${getQuotes()}"`;
-    document.getElementById("author")!.textContent=`-${getAuthor()}`;
+    const { quoteText, quoteAuthor } = getQuote();
+    document.getElementById("quotes")!.textContent = `"${quoteText}"`;
+    document.getElementById("author")!.textContent = quoteAuthor ? `-${quoteAuthor}`: "";
 };
 
-loadVardadienas().then(setNames).catch(console.error);
-loadQuotes().then(setQuote).catch(console.error);
+Promise.all([loadVardadienas(), loadQuotes()])
+    .then(refresh)
+    .catch(console.error);
+
 setClock();
-setDate();
+
+let refreshTime = 60000 //Refresh laiks 60 sec, var pēc tam mainīt, kad ir nepieciešams ātrāks refresh rate
+
+function refresh() {
+    try {
+        setNames()
+        setQuote()
+        setDate()
+    } catch (any) {
+        console.error(any)
+    } finally {
+        setTimeout(refresh, refreshTime)
+    }
+}
