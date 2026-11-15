@@ -1,5 +1,4 @@
 .sports { grid-area: sports; }
-.izmainas { grid-area: izmainas; }
 .fotoarhivs { grid-area: fotoarhivs; }
 
 /* Basic lietas */
@@ -200,6 +199,76 @@ p {
     text-align: center;
     font-size: 18px;
 }
+
+/* Izmaiņas (oh god) */
+
+.izmainu-container {
+    width: 100%;
+    flex: 1;
+    margin-bottom: 16px;
+}
+
+.izmainas { 
+    display: flex;
+    flex-flow: column;
+    grid-area: izmainas;
+    padding: 16px;
+    padding-top: 18px;
+ }
+
+ #class-holder {
+    height: 85px;
+    width: 100%;
+    background-color: RGB(232, 232, 232);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: row;
+ }
+
+ .class-number {
+    width: 60px;
+    height: 100%;
+    justify-items: center;
+    align-content: center;
+ }
+
+ #update-time {
+    font-weight: normal;
+    padding-left: 16px;
+ }
+
+.class-container {
+    height: 100%;
+    width: 85px;
+    display: flex;
+    flex-direction: column;
+    border: 3px solid rgb(195, 195, 195);
+    background-color: RGB(248, 248, 248);
+    margin: 0px;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    border-radius: 8px;
+    justify-content: center;
+    align-items: center;
+}
+
+#class-type {
+    opacity: 20%;
+    padding: 0px;
+    margin: 0px;
+    font-weight: bold;
+}
+
+#kabinets {
+    opacity: 20%;
+    padding: 0px;
+    margin: 0px;
+}
+
+ .updated-container {
+    display: flex;
+    align-content: baseline;
+ }
 
 /* Pašu widget/grid lietiņa */
 .grid-container {
