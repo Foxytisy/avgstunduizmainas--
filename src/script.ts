@@ -1,3 +1,5 @@
+import { startIzmainas } from "./izmainas.js";
+
 interface TableData {
     id: number;
     value: string;
@@ -164,6 +166,7 @@ Promise.all([loadVardadienas(), loadQuotes()])
     .catch(console.error);
 
 setClock();
+startIzmainas();
 
 let refreshTime = 60000 //Refresh laiks 60 sec, var pēc tam mainīt, kad ir nepieciešams ātrāks refresh rate
 

@@ -1,3 +1,4 @@
+import { startIzmainas } from "./izmainas.js";
 ;
 const skip = (n) => String(n).padStart(1, "0");
 const vddb = new Map();
@@ -117,6 +118,7 @@ Promise.all([loadVardadienas(), loadQuotes()])
     .then(refresh)
     .catch(console.error);
 setClock();
+startIzmainas();
 let refreshTime = 60000; //Refresh laiks 60 sec, var pēc tam mainīt, kad ir nepieciešams ātrāks refresh rate
 function refresh() {
     try {

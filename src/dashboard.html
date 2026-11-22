@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+    <script src="dashboard.js" type="module"></script>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body class="dashboard">
+    <div class="main">
+        <div class="dashboard-grid">
+            <div class="izmainas" id="widget">
+                <div class="panel-header">
+                    <h1>Stundu Izmaiņas</h1>
+                    <div class="panel-riki">
+                        <div class="datums-izvele">
+                            <button type="button" class="poga" id="datums-iepr" aria-label="Iepriekšējā diena">‹</button>
+                            <button type="button" class="poga datums-poga" id="datums-poga" title="Izvēlēties datumu">
+                                <span id="datums-teksts">-</span>
+                            </button>
+                            <button type="button" class="poga" id="datums-nak" aria-label="Nākamā diena">›</button>
+                            <button type="button" class="poga" id="datums-sodien">Šodien</button>
+                            <input type="date" id="datums" tabindex="-1" aria-hidden="true">
+                        </div>
+                        <button type="button" class="poga" id="notirit-izmainas">Notīrīt visas izmaiņas</button>
+                    </div>
+                </div>
+                <div class="atlase-bar" id="atlase-bar-izmainas" hidden>
+                    <p class="atlase-info"></p>
+                    <button type="button" class="poga sarkana" data-darbiba="mainit">Mainīt atlasītās</button>
+                    <button type="button" class="poga" data-darbiba="nonemt">Noņemt izmaiņas</button>
+                    <button type="button" class="poga" data-darbiba="notirit">Notīrīt atlasi</button>
+                </div>
+                <div class="dashboard-table" id="izmainas-grid" data-rezims="izmainas"></div>
+                <div class="updated-container">
+                    <h2>Statuss: </h2>
+                    <h2 id="statuss">…</h2>
+                </div>
+            </div>
+
+            <div class="pamatplans" id="widget">
+                <div class="panel-header">
+                    <h1>Stundu saraksts · <span id="pamatplans-diena">-</span></h1>
+                    <form class="pievienot" id="klase-forma">
+                        <input class="ievade" id="klase-nosaukums" placeholder="Pievienot jaunu klasi.." required>
+                        <button type="submit" class="poga">Pievienot klasi</button>
+                    </form>
+                </div>
+                <div class="atlase-bar" id="atlase-bar-pamatplans" hidden>
+                    <p class="atlase-info"></p>
+                    <button type="button" class="poga sarkana" data-darbiba="mainit">Mainīt atlasītās</button>
+                    <button type="button" class="poga" data-darbiba="notirit">Notīrīt atlasi</button>
+                </div>
+                <div class="dashboard-table" id="pamatplans-grid" data-rezims="pamatplans"></div>
+            </div>
+        </div>
+    </div>
+
+    <dialog id="picker">
+        <form method="dialog" class="picker-forma">
+            <h1 id="picker-virsraksts">-</h1>
+            <p id="picker-info" class="picker-info"></p>
+
+            <input type="search" class="ievade" id="picker-meklet" placeholder="Meklēt stundu…" autocomplete="off">
+            <div class="picker-saraksts" id="picker-saraksts"></div>
+
+            <label class="picker-kabinets">
+                <h2 id="gray">Kabinets</h2>
+                <input class="ievade" id="picker-kabinets" maxlength="20" autocomplete="off">
+            </label>
+
+            <details class="picker-jauna">
+                <summary>Jauna stunda</summary>
+                <div class="pievienot">
+                    <input class="ievade" id="jauna-nosaukums" placeholder="Nosaukums" maxlength="80">
+                    <input class="ievade kabinets-ievade" id="jauna-kabinets" placeholder="Kab." maxlength="20">
+                    <button type="button" class="poga" id="jauna-pievienot">+</button>
+                </div>
+            </details>
+
+            <div class="picker-pogas">
+                <button type="submit" class="poga" value="apply">Apstiprināt</button>
+                <button type="submit" class="poga" value="revert" id="picker-nonemt">Noņemt izmaiņu</button>
+                <button type="submit" class="poga" value="cancel" formnovalidate>Atcelt</button>
+            </div>
+        </form>
+    </dialog>
+</body>
+</html>

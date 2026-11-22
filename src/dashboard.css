@@ -1,0 +1,447 @@
+body.dashboard {
+    padding: 32px 0px;
+}
+
+body.dashboard .main {
+    width: min(1280px, calc(100vw - 96px));
+    height: auto;
+    min-height: calc(100vh - 96px);
+}
+
+.dashboard-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+        'izmainas'
+        'pamatplans';
+}
+
+.pamatplans {
+    grid-area: pamatplans;
+    display: flex;
+    flex-flow: column;
+    padding: 16px;
+    padding-top: 18px;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.panel-riki {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.datums-izvele {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.datums-poga {
+    min-width: 220px;
+}
+
+/* Paslēpts zem datuma pogas — kalendārs atveras tieši zem tās */
+#datums {
+    position: absolute;
+    left: 40px;
+    bottom: 0px;
+    width: 1px;
+    height: 1px;
+    padding: 0px;
+    border: none;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.diena {
+    color: var(--accent);
+}
+
+#datums-info {
+    color: var(--dark);
+    font-weight: bold;
+}
+
+#statuss {
+    font-weight: normal;
+    padding-left: 16px;
+}
+
+#statuss.kluda,
+#datums-info.kluda {
+    color: var(--accent);
+}
+
+.dashboard .updated-container {
+    margin-top: 16px;
+}
+
+.atlase-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    margin-bottom: 16px;
+    padding: 8px;
+    padding-left: 16px;
+    border-radius: 8px;
+    background-color: var(--selection);
+}
+
+.atlase-bar[hidden] {
+    display: none;
+}
+
+.atlase-info {
+    margin: 0px;
+    margin-right: auto;
+    font-weight: bold;
+}
+
+.panel-hint {
+    margin: 8px 0px 16px 0px;
+    color: var(--gray);
+    font-size: 14px;
+}
+
+.poga {
+    font-family: inter;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 8px 16px;
+    border: 3px solid var(--gray-light);
+    border-radius: 8px;
+    background-color: var(--cell);
+    cursor: pointer;
+}
+
+.poga:hover:not(:disabled) {
+    border-color: var(--gray);
+}
+
+.poga:disabled {
+    opacity: 40%;
+    cursor: default;
+}
+
+.poga.sarkana {
+    border-color: var(--accent);
+    background-color: var(--accent);
+    color: var(--white);
+}
+
+.poga.sarkana:hover:not(:disabled) {
+    border-color: var(--accent-dark);
+    background-color: var(--accent-dark);
+}
+
+.ievade {
+    font-family: inter;
+    font-size: 14px;
+    padding: 8px;
+    border: 3px solid var(--gray-light);
+    border-radius: 8px;
+    background-color: var(--white);
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.ievade:focus {
+    outline: none;
+    border-color: var(--dark);
+}
+
+.pievienot {
+    display: flex;
+    gap: 8px;
+}
+
+.pievienot .ievade {
+    flex: 1;
+}
+
+#klase-forma .ievade {
+    width: 200px;
+}
+
+.pievienot .kabinets-ievade {
+    flex: 0 0 64px;
+}
+
+.gray-text {
+    color: var(--gray);
+}
+
+.dashboard-table {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.table-header {
+    display: flex;
+    height: 32px;
+}
+
+.table-header .izmainu-holder {
+    gap: 0px;
+}
+
+.kolonna + .kolonna {
+    margin-left: -3px;
+}
+
+.kolonna {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-weight: bold;
+    font-size: 14px;
+    color: var(--gray);
+    cursor: pointer;
+}
+
+.class-number .nonemt,
+.picker-opcija .nonemt {
+    opacity: 0;
+}
+
+.class-number:hover .nonemt,
+.picker-opcija:hover .nonemt,
+.nonemt:focus-visible {
+    opacity: 1;
+}
+
+.dashboard-table .class-holder .class-number {
+    position: relative;
+}
+
+.class-number .nonemt {
+    position: absolute;
+    top: 2px;
+    right: 0px;
+    padding: 2px 4px;
+}
+
+.grade-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding-left: 20px;
+    cursor: pointer;
+}
+
+.dashboard-table .class-number {
+    grid-auto-flow: column;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.dashboard-table .class-container {
+    position: relative;
+    cursor: pointer;
+}
+
+.dashboard-table .class-container:hover,
+.dashboard-table .class-container:focus-visible {
+    z-index: 2; 
+    outline: none;
+    border-color: var(--gray);
+}
+
+.dashboard-table .class-container.changed:hover,
+.dashboard-table .class-container.changed:focus-visible {
+    border-color: var(--accent-dark);
+}
+
+.dashboard-table .class-container.selected {
+    background-color: var(--selection);
+}
+
+.class-container.base .class-type,
+.class-container.base .kabinets {
+    opacity: 100%;
+}
+
+.class-container.has-override::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--accent);
+}
+
+.atlase-check {
+    accent-color: var(--dark);
+    margin: 0px;
+    cursor: pointer;
+}
+
+/* Šūnas rūtiņa: viss stūris (≈30×30px) ir klikšķināms, ne tikai pati rūtiņa */
+.class-container > .atlase-zona {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    display: flex;
+    padding: 5px 10px 10px 5px;
+    cursor: pointer;
+    opacity: 0;
+}
+
+.atlase-zona .atlase-check {
+    width: 16px;
+    height: 16px;
+}
+
+.class-container:hover > .atlase-zona,
+.class-container > .atlase-zona:focus-within,
+.dashboard-table.has-selection .class-container > .atlase-zona {
+    opacity: 1;
+}
+
+.nonemt {
+    border: none;
+    background: none;
+    font-size: 16px;
+    line-height: 16px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-family: inter;
+    color: var(--gray);
+    cursor: pointer;
+}
+
+.nonemt:hover {
+    color: var(--accent);
+    background-color: var(--accent-soft);
+}
+
+#picker {
+    width: 480px;
+    max-width: calc(100vw - 64px);
+    padding: 0px;
+    border: none;
+    border-radius: 24px;
+    background-color: var(--widget);
+    box-shadow: 0px 2px 16px var(--shadow);
+}
+
+#picker::backdrop {
+    background-color: var(--backdrop);
+}
+
+.picker-forma {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    padding-top: 18px;
+}
+
+.picker-info {
+    margin: 0px 0px 8px 0px;
+    font-size: 14px;
+    color: var(--gray);
+}
+
+.picker-saraksts {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 4px;
+    border-radius: 8px;
+    background-color: var(--surface);
+}
+
+.picker-opcija {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border: 3px solid transparent;
+    border-radius: 8px;
+    background-color: var(--cell);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.picker-opcija > span:nth-child(2) {
+    flex: 1;
+}
+
+.picker-opcija:has(input:checked) {
+    border-color: var(--accent);
+}
+
+.picker-opcija input {
+    accent-color: var(--accent);
+    margin: 0px;
+}
+
+.picker-opcija.specials {
+    font-style: italic;
+}
+
+.picker-saraksts > p {
+    margin: 8px;
+    font-size: 14px;
+}
+
+.picker-kabinets {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.picker-kabinets h2 {
+    font-size: 16px;
+}
+
+.picker-kabinets .ievade {
+    flex: 1;
+}
+
+.picker-jauna summary {
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 4px 0px;
+}
+
+.picker-jauna .pievienot {
+    margin-top: 8px;
+}
+
+.picker-pogas {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.picker-pogas > :first-child {
+    order: 3;
+    margin-left: auto;
+}
+
+.picker-pogas > [hidden] {
+    display: none;
+}
