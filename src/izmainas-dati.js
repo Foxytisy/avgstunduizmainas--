@@ -1,5 +1,14 @@
 // Kopīgais modulis: datu tipi, API izsaukumi un šūnu zīmēšana.
 // To izmanto gan TV lapa (izmainas.ts), gan vadības lapa (dashboard.ts).
+export const REKLAMU_URL = "/api/reklamas";
+export const PARKLAJUMU_URL = "/api/parklajumi";
+export const PRIEKSSKATS_ZINA = "tema-prieksskats";
+export function parklajumaUrl(id) {
+    return `${PARKLAJUMU_URL}/${encodeURIComponent(id)}`;
+}
+export function reklamaUrl(id) {
+    return `${REKLAMU_URL}/${encodeURIComponent(id)}`;
+}
 /** Cik dienas atpakaļ glabā izmaiņas (= GLABA_DIENAS server.mjs) */
 export const GLABA_DIENAS = 31;
 export const DIENAS = ["Svētdiena", "Pirmdiena", "Otrdiena", "Trešdiena", "Ceturtdiena", "Piektdiena", "Sestdiena"];

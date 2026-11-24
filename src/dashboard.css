@@ -12,7 +12,10 @@ body.dashboard .main {
     display: grid;
     gap: 16px;
     grid-template-columns: minmax(0, 1fr);
+    /* Secība lapā no augšas uz leju — lai mainītu, pārliec rindas */
     grid-template-areas:
+        'reklamas'
+        'tema'
         'izmainas'
         'pamatplans';
 }
@@ -175,10 +178,6 @@ body.dashboard .main {
 
 .pievienot .kabinets-ievade {
     flex: 0 0 64px;
-}
-
-.gray-text {
-    color: var(--gray);
 }
 
 .dashboard-table {
@@ -444,4 +443,206 @@ body.dashboard .main {
 
 .picker-pogas > [hidden] {
     display: none;
+}
+
+/* ---------- Bilžu karuselis ---------- */
+
+.reklamas {
+    grid-area: reklamas;
+    display: flex;
+    flex-flow: column;
+    gap: 16px;
+    padding: 16px;
+    padding-top: 18px;
+    outline: 3px dashed transparent;
+    outline-offset: -11px;
+}
+
+/* Kad virs kastes velk failus */
+.reklamas.velk-virsu {
+    outline-color: var(--accent);
+}
+
+/* Karuseļa paziņojumi tieši kastē (nevis tikai statusa rindā lapas augšā) */
+.karuselis-statuss {
+    margin: 0px;
+    font-size: 14px;
+    color: var(--gray);
+}
+
+.karuselis-statuss:empty {
+    display: none;
+}
+
+.karuselis-statuss.kluda {
+    color: var(--accent);
+    font-weight: bold;
+}
+
+.periods-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.periods-label h2 {
+    font-size: 16px;
+}
+
+.periods-ievade {
+    width: 72px;
+    text-align: center;
+}
+
+.reklamas-saraksts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.reklama-karte {
+    width: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    border: 3px solid var(--gray-light);
+    border-radius: 16px;
+    background-color: var(--cell);
+    cursor: grab;
+}
+
+.reklama-karte.velk {
+    opacity: 40%;
+}
+
+.reklama-karte.merkis-pirms {
+    border-left-color: var(--accent);
+}
+
+.reklama-karte.merkis-pec {
+    border-right-color: var(--accent);
+}
+
+/* Tādas pašas proporcijas kā TV widgetā — redzams, kā attēls tiks apgriezts */
+.reklama-prieksskats {
+    aspect-ratio: 223 / 218;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: var(--surface);
+}
+
+.reklama-prieksskats img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+.reklama-info {
+    display: flex;
+    gap: 4px;
+    font-size: 14px;
+    min-width: 0;
+}
+
+.reklama-nr {
+    font-weight: bold;
+}
+
+.reklama-nosaukums {
+    color: var(--gray);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reklama-pogas {
+    display: flex;
+    gap: 4px;
+}
+
+.reklama-pogas .poga {
+    padding: 4px 12px;
+}
+
+.reklama-pogas .nonemt {
+    margin-left: auto;
+}
+
+.reklamas-tuksas {
+    margin: 0px;
+    padding: 32px;
+    width: 100%;
+    text-align: center;
+    color: var(--gray);
+    border: 3px dashed var(--gray-light);
+    border-radius: 16px;
+}
+
+/* ---------- Tēma ---------- */
+
+.tema {
+    grid-area: tema;
+    display: flex;
+    flex-flow: column;
+    gap: 16px;
+    padding: 16px;
+    padding-top: 18px;
+}
+
+.tema-saturs {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 656px;
+    gap: 16px;
+    align-items: start;
+}
+
+.tema-iestatijumi {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.tema-iestatijumi .panel-hint {
+    margin: 0px;
+}
+
+.tema-pogas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tema-pogas > [hidden] {
+    display: none;
+}
+
+#parklajums-redzamiba {
+    flex: 1;
+    accent-color: var(--dark);
+}
+
+/* TV lapa iframe iekšā, samazināta uz pusi (1312 × 752 -> 656 × 376) */
+.tema-ramis {
+    width: 656px;
+    height: 376px;
+    overflow: hidden;
+    border-radius: 20px;
+    background-color: var(--dark);
+}
+
+.tema-ramis iframe {
+    width: 1312px;
+    height: 752px;
+    border: none;
+    transform: scale(0.5);
+    transform-origin: 0px 0px;
+    pointer-events: none;
+}
+
+.tema-prieksskats p {
+    margin: 8px 0px 0px 0px;
+    font-size: 14px;
+    text-align: center;
 }

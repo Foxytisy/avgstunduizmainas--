@@ -17,10 +17,17 @@ import {
     GLABA_DIENAS,
     addDays,
     formatDatums,
+    REKLAMU_URL,
+    reklamaUrl,
+    type Reklamas,
+    PARKLAJUMU_URL,
+    PRIEKSSKATS_ZINA,
+    type Tema,
     todayKey,
     weekdayOf,
     withTimeout,
 } from "./izmainas-dati.js";
+
 
 type Rezims = "izmainas" | "pamatplans";
 type AtlasesVeids = "suna" | "klase" | "grade" | "kolonna" | "visas";
@@ -227,7 +234,7 @@ const VECS_SERVERIS = "Serveris darbojas ar veco versiju — aizver to un palaid
 
 /** Datu saturs bez versijas un laikiem, ar sakārtotām atslēgām — lai salīdzinātu. */
 function saturs(d: IzmainuDati): string {
-    return JSON.stringify([d.stunduSkaits, d.klases, d.stundas, d.pamatplans, d.izmainas], (_k, v: unknown) =>
+    return JSON.stringify([d.stunduSkaits, d.klases, d.stundas, d.pamatplans, d.izmainas, d.reklamas, d.tema], (_k, v: unknown) =>
         v && typeof v === "object" && !Array.isArray(v)
             ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
             : v);
@@ -598,6 +605,8 @@ function renderGrids(): void {
 
 function renderAll(): void {
     if (jaAtliek()) return;
+    renderReklamas();
+    renderTema();
     renderGrids();
     renderAtlase();
     renderDatums();
@@ -821,7 +830,430 @@ function revertPicker(): void {
     commit();
 }
 
+// ---------- Bilžu karuselis (iekšēji — "reklamas") ----------
+
+const MAX_MALA = 1200;              // garākā mala pēc samazināšanas (TV widgetā tik un tā ~240px)
+const MAX_FAILS = 15 * 1024 * 1024; // = MAX_ATTELS server.mjs
+const ATTELU_TIPI = /^image\/(png|p?jpeg|webp|gif)$/; // pjpeg = .jfif foto (Chrome)
+const ATTELU_PAPLASINAJUMI = /\.(png|jpe?g|jfif|webp|gif)$/i; // ja pārlūks faila tipu nepasaka
+const VECS_KARUSELIS = "Serveris vēl darbojas ar veco versiju, kurai nav bilžu karuseļa. Aizver to un palaid server.mjs no jauna, tad pārlādē lapu.";
+
+let augsupielade = false;
+let reklamasKey = "";   // lai sīktēlus pārzīmē tikai tad, kad saraksts mainās
+let velkId: string | null = null;
+
+/** Vai serveris atbalsta karuseli (vecais server.mjs datos "reklamas" nesūta). */
+function karuselisPieejams(): boolean {
+    return !!dati?.reklamas;
+}
+
+function getReklamas(): Reklamas {
+    return dati?.reklamas ?? { periods: 10, atteli: [] };
+}
+
+/** Paziņojums karuseļa kastē (augšupielāde, kļūdas). */
+function karuselaStatuss(text: string, kluda = false): void {
+    const p = $("karuselis-statuss");
+    p.textContent = text;
+    p.classList.toggle("kluda", kluda);
+}
+
+function renderReklamas(): void {
+    const periods = $<HTMLInputElement>("reklamas-periods");
+    const r = getReklamas();
+    const pieejams = karuselisPieejams();
+    if (document.activeElement !== periods) periods.value = String(r.periods);
+    periods.disabled = !pieejams;
+    $<HTMLButtonElement>("reklamas-pievienot").disabled = !pieejams || augsupielade;
+    if (dati && !pieejams) karuselaStatuss(VECS_KARUSELIS, true);
+
+    const key = `${pieejams}|${JSON.stringify(r.atteli)}`;
+    if (key === reklamasKey) return;
+    reklamasKey = key;
+
+    const box = $("reklamas-saraksts");
+    if (r.atteli.length === 0) {
+        box.replaceChildren(el("p", "reklamas-tuksas", "Nav bilžu. Ievelc tās šeit vai spied „Pievienot bildes“."));
+        return;
+    }
+
+    box.replaceChildren(...r.atteli.map((a, idx) => {
+        const karte = el("div", "reklama-karte");
+        karte.dataset.id = a.id;
+        karte.draggable = true;
+
+        const skats = el("div", "reklama-prieksskats");
+        const img = el("img");
+        img.src = reklamaUrl(a.id);
+        img.alt = a.nosaukums;
+        img.loading = "lazy";
+        skats.append(img);
+
+        const info = el("div", "reklama-info");
+        const nos = el("span", "reklama-nosaukums", a.nosaukums || "bilde");
+        nos.title = a.nosaukums;
+        info.append(el("span", "reklama-nr", `${idx + 1}.`), nos);
+
+        const pogas = el("div", "reklama-pogas");
+        const poga = (darbiba: string, teksts: string, title: string, klase = "poga"): HTMLButtonElement => {
+            const b = el("button", klase, teksts);
+            b.type = "button";
+            b.dataset.darbiba = darbiba;
+            b.title = title;
+            return b;
+        };
+        const pa_kreisi = poga("kreisi", "‹", "Rādīt agrāk");
+        const pa_labi = poga("labi", "›", "Rādīt vēlāk");
+        pa_kreisi.disabled = idx === 0;
+        pa_labi.disabled = idx === r.atteli.length - 1;
+        pogas.append(pa_kreisi, pa_labi, poga("dzest", "×", "Dzēst bildi", "nonemt"));
+
+        karte.append(skats, info, pogas);
+        return karte;
+    }));
+}
+
+function parvietotReklamu(id: string, uz: number): void {
+    if (!karuselisPieejams()) return;
+    const atteli = getReklamas().atteli;
+    const no = atteli.findIndex(a => a.id === id);
+    if (no < 0) return;
+    const [a] = atteli.splice(no, 1);
+    atteli.splice(Math.max(0, Math.min(uz, atteli.length)), 0, a!);
+    commit();
+}
+
+/** Lieliem foto samazina izmēru (WEBP), lai TV nav jāvelk 5 MB bilde 240px kastē. GIF atstāj, kā ir. */
+async function samazinat(f: File): Promise<Blob> {
+    if (f.type === "image/gif") return f; // citādi pazustu animācija
+    let bmp: ImageBitmap;
+    try {
+        bmp = await createImageBitmap(f);
+    } catch {
+        return f; // serveris pārbaudīs pats
+    }
+    const canvas = document.createElement("canvas");
+    try {
+        const k = Math.min(1, MAX_MALA / Math.max(bmp.width, bmp.height));
+        if (k === 1 && f.size < 1_500_000) return f;
+        canvas.width = Math.round(bmp.width * k);
+        canvas.height = Math.round(bmp.height * k);
+        canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, "image/webp", 0.9));
+        return blob && blob.size < f.size ? blob : f;
+    } finally {
+        bmp.close();
+        canvas.width = canvas.height = 0; // atbrīvo atmiņu uzreiz
+    }
+}
+
+async function uploadReklama(blob: Blob, nosaukums: string, signal: AbortSignal): Promise<IzmainuDati> {
+    return await augsupieladet(REKLAMU_URL, blob, nosaukums, signal);
+}
+
+async function augsupieladet(url: string, blob: Blob, nosaukums: string, signal: AbortSignal): Promise<IzmainuDati> {
+    const res = await fetch(url, {
+        method: "POST",
+        body: blob,
+        headers: {
+            "Content-Type": blob.type || "application/octet-stream",
+            "X-Faila-Nosaukums": encodeURIComponent(nosaukums),
+        },
+        signal,
+    });
+    if (res.status === 404 || res.status === 405) throw new Error(VECS_KARUSELIS); // vecais server.mjs
+    if (!res.ok) throw new Error((await res.text()) || `Neizdevās augšupielādēt: ${res.status}`);
+    return await res.json() as IzmainuDati;
+}
+
+/** Gaida, kamēr beidzas iesāktā saglabāšana (maks. ~10 s). */
+async function gaidiSaglabasanu(): Promise<void> {
+    for (let i = 0; i < 200 && (saglaba || vajagSaglabat); i++) {
+        await new Promise(r => setTimeout(r, 50));
+    }
+}
+
+async function pievienotAttelus(faili: File[]): Promise<void> {
+    if (!dati || augsupielade || faili.length === 0) return;
+    if (!karuselisPieejams()) {
+        karuselaStatuss(VECS_KARUSELIS, true);
+        return;
+    }
+    // Daži pārlūki/sistēmas faila tipu nenosaka — tad skatāmies pēc nosaukuma; serveris pārbauda saturu
+    const atteli = faili.filter(f => ATTELU_TIPI.test(f.type) || (!f.type && ATTELU_PAPLASINAJUMI.test(f.name)));
+    if (atteli.length === 0) {
+        karuselaStatuss("Atbalstītas tikai PNG, JPG, WEBP un GIF bildes", true);
+        return;
+    }
+
+    augsupielade = true;
+    renderReklamas();
+    await gaidiSaglabasanu();
+    saglaba = true; // kamēr augšupielādē, nesaglabā un neielādē neko citu
+    let kluda = "";
+    try {
+        for (const [n, f] of atteli.entries()) {
+            karuselaStatuss(`Augšupielādē ${n + 1}/${atteli.length}: ${f.name}…`);
+            const blob = await samazinat(f);
+            if (blob.size > MAX_FAILS) {
+                kluda = `${f.name} ir pārāk liela (maks. 15 MB)`;
+                continue;
+            }
+            const jauni = await withTimeout(60_000, signal => uploadReklama(blob, f.name, signal));
+            if (vajagSaglabat && dati) {
+                // pa to laiku ir nesaglabātas izmaiņas — paņemam tikai jauno versiju un reklāmas
+                dati.version = jauni.version;
+                dati.reklamas = jauni.reklamas;
+            } else {
+                dati = jauni;
+            }
+            renderReklamas();
+        }
+        if (kluda) karuselaStatuss(kluda, true);
+        else if (atteli.length < faili.length) karuselaStatuss("Daži faili nav bildes — tie izlaisti", true);
+        else karuselaStatuss(`Bildes pievienotas ${laiks()}`);
+    } catch (err) {
+        console.error(err);
+        karuselaStatuss(err instanceof Error && err.message ? err.message : "Neizdevās augšupielādēt", true);
+    } finally {
+        saglaba = false;
+        augsupielade = false;
+        renderAll();
+        if (vajagSaglabat) void flush();
+    }
+}
+
+function initReklamas(): void {
+    const kaste = document.querySelector<HTMLElement>(".reklamas")!;
+    const saraksts = $("reklamas-saraksts");
+    const fails = $<HTMLInputElement>("reklamas-fails");
+
+    $("reklamas-pievienot").addEventListener("click", () => fails.click());
+    fails.addEventListener("change", () => {
+        const f = [...(fails.files ?? [])];
+        fails.value = ""; // lai to pašu failu var izvēlēties vēlreiz
+        void pievienotAttelus(f);
+    });
+
+    $("reklamas-periods").addEventListener("change", e => {
+        const input = e.target as HTMLInputElement;
+        const v = Math.round(Number(input.value));
+        if (!dati || !karuselisPieejams() || !Number.isFinite(v)) return;
+        getReklamas().periods = Math.min(600, Math.max(3, v));
+        input.value = String(getReklamas().periods);
+        commit();
+    });
+
+    saraksts.addEventListener("click", e => {
+        const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-darbiba]");
+        const id = b?.closest<HTMLElement>(".reklama-karte")?.dataset.id;
+        if (!b || !id || !dati || !karuselisPieejams()) return;
+        const idx = getReklamas().atteli.findIndex(a => a.id === id);
+        if (b.dataset.darbiba === "kreisi") parvietotReklamu(id, idx - 1);
+        else if (b.dataset.darbiba === "labi") parvietotReklamu(id, idx + 1);
+        else if (b.dataset.darbiba === "dzest") {
+            const a = getReklamas().atteli[idx];
+            if (!a || !confirm(`Dzēst bildi "${a.nosaukums || idx + 1}"?`)) return;
+            getReklamas().atteli.splice(idx, 1);
+            commit(); // serveris izdzēš arī failu
+        }
+    });
+
+    // Secības maiņa, velkot kartītes
+    const notiritMerki = (): void => {
+        for (const k of saraksts.querySelectorAll(".merkis-pirms, .merkis-pec")) k.classList.remove("merkis-pirms", "merkis-pec");
+    };
+    saraksts.addEventListener("dragstart", e => {
+        const karte = (e.target as HTMLElement).closest<HTMLElement>(".reklama-karte");
+        if (!karte?.dataset.id || !e.dataTransfer) return;
+        velkId = karte.dataset.id;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/x-reklama", velkId);
+        karte.classList.add("velk");
+    });
+    saraksts.addEventListener("dragend", () => {
+        velkId = null;
+        notiritMerki();
+        for (const k of saraksts.querySelectorAll(".velk")) k.classList.remove("velk");
+    });
+
+    const merkis = (e: DragEvent): { karte: HTMLElement; pec: boolean } | null => {
+        const karte = (e.target as HTMLElement).closest<HTMLElement>(".reklama-karte");
+        if (!karte) return null;
+        const r = karte.getBoundingClientRect();
+        return { karte, pec: e.clientX > r.left + r.width / 2 };
+    };
+
+    // Failu ievilkšana jebkur reklāmu kastē + kartīšu nomešana
+    kaste.addEventListener("dragover", e => {
+        const ir_faili = e.dataTransfer?.types.includes("Files");
+        if (!ir_faili && !velkId) return;
+        e.preventDefault();
+        if (ir_faili) kaste.classList.add("velk-virsu");
+        else {
+            notiritMerki();
+            const m = merkis(e);
+            if (m && m.karte.dataset.id !== velkId) m.karte.classList.add(m.pec ? "merkis-pec" : "merkis-pirms");
+        }
+    });
+    kaste.addEventListener("dragleave", e => {
+        if (!kaste.contains(e.relatedTarget as Node | null)) {
+            kaste.classList.remove("velk-virsu");
+            notiritMerki();
+        }
+    });
+    kaste.addEventListener("drop", e => {
+        e.preventDefault();
+        kaste.classList.remove("velk-virsu");
+        notiritMerki();
+        if (e.dataTransfer?.types.includes("Files")) {
+            void pievienotAttelus([...e.dataTransfer.files]);
+            return;
+        }
+        const m = merkis(e);
+        if (!velkId || !m?.karte.dataset.id || m.karte.dataset.id === velkId) return;
+        const atteli = getReklamas().atteli;
+        const no = atteli.findIndex(a => a.id === velkId);
+        let uz = atteli.findIndex(a => a.id === m.karte.dataset.id) + (m.pec ? 1 : 0);
+        if (no < uz) uz--; // pēc izņemšanas indeksi pabīdās
+        parvietotReklamu(velkId, uz);
+    });
+}
+
+const VECS_TEMA = "Serveris vēl darbojas ar veco versiju, kurai nav pārklājuma. Aizver to un palaid server.mjs no jauna, tad pārlādē lapu.";
+const PARKLAJUMA_TIPI = /^image\/(png|webp|gif)$/;
+const TV_IZMERS = { platums: 1312, augstums: 752 };
+
+let redzamibaVelk: number | null = null;
+
+function saglabataTema(): Tema {
+    return dati?.tema ?? { parklajums: null };
+}
+
+function temaPieejama(): boolean {
+    return !!dati?.tema;
+}
+
+function temaStatuss(text: string, kluda = false): void {
+    const p = $("tema-statuss");
+    p.textContent = text;
+    p.classList.toggle("kluda", kluda);
+}
+
+function prieksskataTema(): Tema {
+    const p = saglabataTema().parklajums;
+    return { parklajums: p ? { ...p, necaurspidigums: redzamibaVelk ?? p.necaurspidigums } : null };
+}
+
+function sutitPrieksskatu(): void {
+    const iframe = $<HTMLIFrameElement>("tema-iframe");
+    iframe.contentWindow?.postMessage({ tips: PRIEKSSKATS_ZINA, tema: prieksskataTema() }, location.origin);
+}
+
+function renderTema(): void {
+    const pieejama = temaPieejama();
+    const park = saglabataTema().parklajums;
+
+    const pievienot = $<HTMLButtonElement>("parklajums-pievienot");
+    pievienot.disabled = !pieejama || augsupielade;
+    pievienot.textContent = park ? "Aizstāt pārklājumu" : "Pievienot pārklājumu";
+    $<HTMLButtonElement>("parklajums-nonemt").disabled = !park;
+
+    const slidnis = $<HTMLInputElement>("parklajums-redzamiba");
+    slidnis.disabled = !park;
+    const redzamiba = redzamibaVelk ?? park?.necaurspidigums ?? 100;
+    if (document.activeElement !== slidnis) slidnis.value = String(redzamiba);
+    $("parklajums-proc").textContent = park ? `${redzamiba}%` : "—";
+
+    if (dati && !pieejama) temaStatuss(VECS_TEMA, true);
+
+    sutitPrieksskatu();
+}
+
+async function pievienotParklajumu(f: File): Promise<void> {
+    if (!dati || augsupielade) return;
+    if (!temaPieejama()) {
+        temaStatuss(VECS_TEMA, true);
+        return;
+    }
+    if (!PARKLAJUMA_TIPI.test(f.type) && !(!f.type && /\.(png|webp|gif)$/i.test(f.name))) {
+        temaStatuss("Pārklājumam vajag caurspīdīgu PNG, WEBP vai GIF attēlu (JPG nevar būt caurspīdīgs)", true);
+        return;
+    }
+    if (f.size > MAX_FAILS) {
+        temaStatuss(`${f.name} ir pārāk liels (maks. 15 MB)`, true);
+        return;
+    }
+
+    let izmers = "";
+    try {
+        const bmp = await createImageBitmap(f);
+        const k = (bmp.width / bmp.height) / (TV_IZMERS.platums / TV_IZMERS.augstums);
+        if (Math.abs(k - 1) > 0.02) izmers = ` Uzmanību: attēls ir ${bmp.width} × ${bmp.height} px, tāpēc tas tiks izstiepts līdz ekrāna proporcijām (${TV_IZMERS.platums} × ${TV_IZMERS.augstums}).`;
+        bmp.close();
+    } catch { }
+
+    augsupielade = true;
+    renderAll();
+    await gaidiSaglabasanu();
+    saglaba = true;
+    try {
+        temaStatuss(`Augšupielādē ${f.name}…`);
+        const jauni = await withTimeout(60_000, signal => augsupieladet(PARKLAJUMU_URL, f, f.name, signal));
+        if (vajagSaglabat && dati) {
+            dati.version = jauni.version;
+            dati.tema = { parklajums: jauni.tema.parklajums };
+        } else {
+            dati = jauni;
+        }
+        temaStatuss(`Pārklājums pievienots ${laiks()}.${izmers}`, izmers !== "");
+    } catch (err) {
+        console.error(err);
+        temaStatuss(err instanceof Error && err.message ? err.message.replace(VECS_KARUSELIS, VECS_TEMA) : "Neizdevās augšupielādēt", true);
+    } finally {
+        saglaba = false;
+        augsupielade = false;
+        renderAll();
+        if (vajagSaglabat) void flush();
+    }
+}
+
+function initTema(): void {
+    const fails = $<HTMLInputElement>("parklajums-fails");
+    $("parklajums-pievienot").addEventListener("click", () => fails.click());
+    fails.addEventListener("change", () => {
+        const f = fails.files?.[0];
+        fails.value = "";
+        if (f) void pievienotParklajumu(f);
+    });
+    $("parklajums-nonemt").addEventListener("click", () => {
+        if (!dati?.tema?.parklajums || !confirm("Noņemt pārklājumu un atgriezt sākotnējo izskatu?")) return;
+        dati.tema = { parklajums: null };
+        commit();
+        temaStatuss(`Atgriezts sākotnējais izskats (${laiks()})`);
+    });
+
+    const slidnis = $<HTMLInputElement>("parklajums-redzamiba");
+    slidnis.addEventListener("input", () => {
+        redzamibaVelk = Number(slidnis.value);
+        $("parklajums-proc").textContent = `${redzamibaVelk}%`;
+        sutitPrieksskatu();
+    });
+    slidnis.addEventListener("change", () => {
+        const v = Number(slidnis.value);
+        redzamibaVelk = null;
+        if (!dati?.tema?.parklajums) return;
+        dati.tema = { parklajums: { ...dati.tema.parklajums, necaurspidigums: v } };
+        commit();
+    });
+
+    $("tema-iframe").addEventListener("load", sutitPrieksskatu);
+}
+
 function init(): void {
+    initReklamas();
+    initTema();
+
     for (const id of ["izmainas-grid", "pamatplans-grid"]) {
         const root = $(id);
         root.addEventListener("change", onGridChange);

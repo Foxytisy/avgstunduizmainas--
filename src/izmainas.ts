@@ -9,6 +9,8 @@ import {
     todayKey,
     withTimeout,
 } from "./izmainas-dati.js";
+import { atjaunotReklamas } from "./reklamas.js";
+import { atjaunotTemu } from "./tema.js";
 
 const RINDAS_LAPA = 4;
 const ROTACIJA_MS = 8_000;
@@ -152,6 +154,8 @@ async function poll(): Promise<void> {
         if (!dati || jauni.version !== dati.version) {
             dati = jauni;
             kick();
+            atjaunotReklamas(jauni.reklamas); // reklāmas un tēma nāk tajos pašos datos
+            atjaunotTemu(jauni.tema);
         }
     } catch (err) {
         console.error(err);

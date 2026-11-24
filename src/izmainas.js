@@ -1,4 +1,6 @@
 import { createClassContainer, createClassNumber, formatAtjaunots, getStunda, klasesArIzmainam, loadIzmainas, todayKey, withTimeout, } from "./izmainas-dati.js";
+import { atjaunotReklamas } from "./reklamas.js";
+import { atjaunotTemu } from "./tema.js";
 const RINDAS_LAPA = 4;
 const ROTACIJA_MS = 8_000;
 const FADE_MS = 300;
@@ -128,6 +130,8 @@ async function poll() {
         if (!dati || jauni.version !== dati.version) {
             dati = jauni;
             kick();
+            atjaunotReklamas(jauni.reklamas); // reklāmas un tēma nāk tajos pašos datos
+            atjaunotTemu(jauni.tema);
         }
     }
     catch (err) {

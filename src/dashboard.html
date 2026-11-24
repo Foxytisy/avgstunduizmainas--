@@ -53,6 +53,51 @@
                 </div>
                 <div class="dashboard-table" id="pamatplans-grid" data-rezims="pamatplans"></div>
             </div>
+
+            <div class="reklamas" id="widget">
+                <div class="panel-header">
+                    <h1>Bilžu karuselis</h1>
+                    <div class="panel-riki">
+                        <label class="periods-label">
+                            <h2 id="gray">Mainās ik pēc</h2>
+                            <input type="number" class="ievade periods-ievade" id="reklamas-periods" min="3" max="600" step="1">
+                            <h2 id="gray">s</h2>
+                        </label>
+                        <button type="button" class="poga sarkana" id="reklamas-pievienot">Pievienot bildes</button>
+                        <input type="file" id="reklamas-fails" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+                    </div>
+                </div>
+                <p class="karuselis-statuss" id="karuselis-statuss"></p>
+                <div class="reklamas-saraksts" id="reklamas-saraksts"></div>
+            </div>
+
+            <div class="tema" id="widget">
+                <div class="panel-header">
+                    <h1>Pārklājums</h1>
+                </div>
+                <p class="karuselis-statuss" id="tema-statuss"></p>
+                <div class="tema-saturs">
+                    <div class="tema-iestatijumi">
+                        <p class="panel-hint">Caurspīdīgs PNG pāri visam ekrānam. Ieteicamais izmērs 1312 × 752 px (vai 2624 × 1504).</p>
+                        <div class="tema-pogas">
+                            <button type="button" class="poga sarkana" id="parklajums-pievienot">Pievienot pārklājumu</button>
+                            <button type="button" class="poga" id="parklajums-nonemt">Atgriezt sākotnējo</button>
+                            <input type="file" id="parklajums-fails" accept="image/png,image/webp,image/gif" hidden>
+                        </div>
+                        <label class="periods-label">
+                            <h2 id="gray">Redzamība</h2>
+                            <input type="range" id="parklajums-redzamiba" min="10" max="100" step="5">
+                            <span id="parklajums-proc"></span>
+                        </label>
+                    </div>
+
+                    <div class="tema-prieksskats">
+                        <div class="tema-ramis">
+                            <iframe id="tema-iframe" src="index.html" title="TV priekšskatījums" tabindex="-1"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

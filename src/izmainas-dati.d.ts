@@ -4,6 +4,34 @@ export interface Stunda {
 }
 /** null = šajā laikā stundas nav */
 export type Ieraksts = Stunda | null;
+export interface Reklama {
+    /** Faila nosaukums serverī, piem. "3f9a1c2b7d4e5f60.webp" */
+    id: string;
+    /** Sākotnējais faila nosaukums (tikai dashboard) */
+    nosaukums: string;
+}
+export interface Reklamas {
+    /** Cik sekundes rāda katru attēlu */
+    periods: number;
+    /** Rādīšanas secībā */
+    atteli: Reklama[];
+}
+export declare const REKLAMU_URL = "/api/reklamas";
+export declare const PARKLAJUMU_URL = "/api/parklajumi";
+export interface Parklajums {
+    /** Faila nosaukums serverī */
+    id: string;
+    /** Sākotnējais faila nosaukums */
+    nosaukums: string;
+    /** 10…100 % */
+    necaurspidigums: number;
+}
+export interface Tema {
+    parklajums: Parklajums | null;
+}
+export declare const PRIEKSSKATS_ZINA = "tema-prieksskats";
+export declare function parklajumaUrl(id: string): string;
+export declare function reklamaUrl(id: string): string;
 /** klase -> { stundas indekss (no 0): jaunā stunda } */
 export type DienasIzmainas = Record<string, Record<string, Ieraksts>>;
 export interface IzmainuDati {
@@ -19,6 +47,10 @@ export interface IzmainuDati {
     pamatplans: Record<string, Record<string, Ieraksts[]>>;
     /** Pagaidu izmaiņas katram datumam: "2026-11-23" -> klase -> stundas. Pagājušos datumus serveris izdzēš. */
     izmainas: Record<string, DienasIzmainas>;
+    /** Reklāmu attēli "Fotoarhīvs" widgetā */
+    reklamas: Reklamas;
+    /** Displeja krāsas un pārklājums */
+    tema: Tema;
 }
 /** Cik dienas atpakaļ glabā izmaiņas (= GLABA_DIENAS server.mjs) */
 export declare const GLABA_DIENAS = 31;

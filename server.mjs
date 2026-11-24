@@ -5,8 +5,12 @@
 //
 // Pasniedz visu projekta mapi (tā, kurā atrodas šis fails) kā statiskus failus
 // un glabā izmaiņas failā data/izmainas.json.
-//   GET /api/izmainas  -> visi dati (TV un dashboard)
-//   PUT /api/izmainas  -> saglabā datus (dashboard)
+//   GET  /api/izmainas         -> visi dati (TV un dashboard)
+//   PUT  /api/izmainas         -> saglabā datus (dashboard) — arī reklāmu secību, periodu, dzēšanu
+//   POST /api/reklamas         -> augšupielādē vienu attēlu (ķermenis = attēla baiti)
+//   GET  /api/reklamas/<id>    -> attēls (glabājas data/reklamas/)
+//   POST /api/parklajumi       -> augšupielādē tēmas pārklājumu (aizstāj iepriekšējo)
+//   GET  /api/parklajumi/<id>  -> pārklājuma attēls (glabājas data/parklajumi/)
 //
 // Datu forma:
 //   pamatplans[nedēļas diena "0"–"6"][klase] = stundas      (katra pirmdiena vienāda utt.)
@@ -15,21 +19,30 @@
 // Vecā forma (viens pamatplāns + viens datums) tiek pārveidota automātiski.
 
 import http from "node:http";
-import { readFile, writeFile, rename, mkdir, stat } from "node:fs/promises";
+import { readFile, writeFile, rename, mkdir, stat, readdir, unlink } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomBytes } from "node:crypto";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "izmainas.json");
+const REKLAMU_DIR = path.join(DATA_DIR, "reklamas");
+const REKLAMU_URL = "/api/reklamas";
+const MAX_ATTELS = 15 * 1024 * 1024;  // viena attēla maksimālais izmērs
+const MAX_REKLAMAS = 50;
+const REKLAMA_ID_RE = /^[a-f0-9]{16}\.(png|jpg|webp|gif)$/;
+const PARKLAJUMU_DIR = path.join(DATA_DIR, "parklajumi");
+const PARKLAJUMU_URL = "/api/parklajumi";
+const PARKLAJUMA_ID_RE = /^[a-f0-9]{16}\.(png|webp|gif)$/; // tikai formāti ar caurspīdīgumu
 const PORT = Number(process.env.PORT) || 8080;
 const MAX_BODY = 512 * 1024;
 const API_URL = "/api/izmainas";
 // Datu formas versija ETag galvenē. Ja forma mainās, pārlūks nedrīkst izmantot vecu
 // kešā saglabātu atbildi tikai tāpēc, ka sakrīt version skaitlis.
-const FORMA = "f2";
+const FORMA = "f4";
 const etagOf = s => `"${FORMA}-v${s.version}"`;
 
 const KLASE_RE = /^\d{1,2}\.\p{L}{1,3}$/u;
@@ -84,6 +97,33 @@ function sanitizeStunda(v) {
     const nosaukums = str(v.nosaukums, 80);
     if (!nosaukums) return null;
     return { nosaukums, kabinets: str(v.kabinets, 20) };
+}
+
+/**
+ * Reklāmas: { periods: sekundes, atteli: [{ id, nosaukums }] } — secība = rādīšanas secība.
+ * atlautie: id, kas drīkst būt sarakstā (jau augšupielādētie). Pievienot var tikai ar POST.
+ */
+function sanitizeReklamas(v, atlautie) {
+    const ievade = v && typeof v === "object" ? v : {};
+    const periods = clampInt(ievade.periods, 3, 600, 10);
+    const atteli = [];
+    const redzeti = new Set();
+    for (const a of Array.isArray(ievade.atteli) ? ievade.atteli : []) {
+        const id = typeof a?.id === "string" ? a.id : "";
+        if (!REKLAMA_ID_RE.test(id) || redzeti.has(id) || (atlautie && !atlautie.has(id))) continue;
+        redzeti.add(id);
+        atteli.push({ id, nosaukums: str(a.nosaukums, 100) });
+    }
+    return { periods, atteli: atteli.slice(0, MAX_REKLAMAS) };
+}
+
+function sanitizeTema(v, esosaisParklajums) {
+    const t = v && typeof v === "object" ? v : {};
+    const p = t.parklajums;
+    const parklajums = p && esosaisParklajums && p.id === esosaisParklajums.id
+        ? { id: esosaisParklajums.id, nosaukums: esosaisParklajums.nosaukums, necaurspidigums: Number.isInteger(p.necaurspidigums) ? Math.min(100, Math.max(10, p.necaurspidigums)) : 100 }
+        : null;
+    return { parklajums };
 }
 
 // Pārbūvē datus no nulles, lai failā nekad nenonāk nekas lieks vai bīstams.
@@ -145,7 +185,14 @@ function sanitize(input) {
         if (Object.keys(cleanDiena).length > 0) izmainas[datums] = cleanDiena;
     }
 
-    return { stunduSkaits, klases, stundas, pamatplans, izmainas };
+    const iepriekPark = input.tema?.parklajums;
+    const uzticamsPark = iepriekPark && PARKLAJUMA_ID_RE.test(iepriekPark.id)
+        ? { id: iepriekPark.id, nosaukums: str(iepriekPark.nosaukums, 100) } : null;
+    return {
+        stunduSkaits, klases, stundas, pamatplans, izmainas,
+        reklamas: sanitizeReklamas(input.reklamas, null),
+        tema: sanitizeTema(input.tema, uzticamsPark),
+    };
 }
 
 /** atjaunots: { datums: ms } — vecajā formā tas bija viens skaitlis */
@@ -216,6 +263,10 @@ async function loadState() {
             atjaunots,
             ...clean,
         };
+        s.reklamas.atteli = await esosieAtteli(s.reklamas.atteli);
+        if (s.tema.parklajums && !(await readdir(PARKLAJUMU_DIR).catch(() => [])).includes(s.tema.parklajums.id)) {
+            s.tema.parklajums = null; // fails pazudis
+        }
         if (!raw.pamatplans?.["1"] || raw.datums !== undefined) {
             s.version += 1; // pārveidoti dati = jauna versija
             console.log("Dati pārveidoti jaunajā formā (pamatplāns pa nedēļas dienām, izmaiņas pa datumiem).");
@@ -246,7 +297,39 @@ function persist(snapshot) {
     return p;
 }
 
+/** Atstāj tikai tos attēlus, kuru faili tiešām ir uz diska. */
+async function esosieAtteli(atteli) {
+    const faili = new Set(await readdir(REKLAMU_DIR).catch(() => []));
+    return atteli.filter(a => faili.has(a.id));
+}
+
+/** Izdzēš attēlu failus, kas vairs nav sarakstā (piem. dzēsti dashboard). */
+async function notiritReklamas(atteli) {
+    const vajag = new Set(atteli.map(a => a.id));
+    for (const f of await readdir(REKLAMU_DIR).catch(() => [])) {
+        if (REKLAMA_ID_RE.test(f) && !vajag.has(f)) await unlink(path.join(REKLAMU_DIR, f)).catch(() => {});
+    }
+}
+
+/** Attēla veids pēc pirmajiem baitiem (nevis pēc nosaukuma vai Content-Type, kam var meloties). */
+function attelaVeids(buf) {
+    if (buf.length > 8 && buf[0] === 0x89 && buf.toString("latin1", 1, 4) === "PNG") return "png";
+    if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "jpg";
+    if (buf.length > 6 && buf.toString("latin1", 0, 4) === "GIF8") return "gif";
+    if (buf.length > 12 && buf.toString("latin1", 0, 4) === "RIFF" && buf.toString("latin1", 8, 12) === "WEBP") return "webp";
+    return null;
+}
+
+/** Izdzēš pārklājuma failus, izņemot pašreizējo. */
+async function notiritParklajumus(parklajums) {
+    for (const f of await readdir(PARKLAJUMU_DIR).catch(() => [])) {
+        if (PARKLAJUMA_ID_RE.test(f) && f !== parklajums?.id) await unlink(path.join(PARKLAJUMU_DIR, f)).catch(() => {});
+    }
+}
+
 let state = await loadState();
+await notiritReklamas(state.reklamas.atteli);
+await notiritParklajumus(state.tema.parklajums);
 
 // ---------- HTTP palīgi ----------
 
@@ -266,14 +349,14 @@ function sendJson(res, status, data, headers = {}) {
     res.end(body);
 }
 
-function readBody(req) {
+function readBody(req, limit = MAX_BODY) {
     return new Promise((resolve, reject) => {
         const chunks = [];
         let size = 0;
         let parak = false;
         const onData = chunk => {
             size += chunk.length;
-            if (size > MAX_BODY) {
+            if (size > limit) {
                 parak = true;
                 chunks.length = 0;
                 req.off("data", onData);
@@ -285,7 +368,7 @@ function readBody(req) {
         req.on("data", onData);
         req.once("end", () => (parak
             ? reject(Object.assign(new Error("Pārāk liels pieprasījums"), { status: 413 }))
-            : resolve(Buffer.concat(chunks).toString("utf8"))));
+            : resolve(Buffer.concat(chunks))));
         req.once("error", reject);
     });
 }
@@ -307,7 +390,7 @@ async function handleApi(req, res) {
     if (req.method === "PUT") {
         let input;
         try {
-            input = JSON.parse(await readBody(req));
+            input = JSON.parse((await readBody(req)).toString("utf8"));
         } catch (err) {
             return send(res, err.status ?? 400, err.status ? err.message : "Nederīgs JSON");
         }
@@ -321,6 +404,13 @@ async function handleApi(req, res) {
         } catch {
             return send(res, 400, "Nederīgi dati");
         }
+        // Reklāmas: drīkst mainīt secību, periodu un dzēst — bet ne pievienot (tas ir POST).
+        // Ja dashboard reklāmas nesūta (vecāka versija), atstājam esošās.
+        clean.reklamas = input.reklamas === undefined
+            ? state.reklamas
+            : sanitizeReklamas(input.reklamas, new Set(state.reklamas.atteli.map(a => a.id)));
+        // Tēma: ja dashboard to nesūta (vecāka versija), atstājam esošo
+        clean.tema = input.tema === undefined ? state.tema : sanitizeTema(input.tema, state.tema.parklajums);
 
         // "Atjaunināts" katram datumam atsevišķi — tikai tiem, kuru izmaiņas tiešām mainījās
         const sodien = todayKey();
@@ -345,10 +435,120 @@ async function handleApi(req, res) {
             console.error("Neizdevās saglabāt:", err);
             return send(res, 500, "Neizdevās saglabāt failā");
         }
+        await notiritReklamas(state.reklamas.atteli);
+        await notiritParklajumus(state.tema.parklajums);
         return sendJson(res, 200, state, { ETag: etagOf(state) });
     }
 
     send(res, 405, "Metode nav atļauta", { Allow: "GET, HEAD, PUT" });
+}
+
+/** POST /api/reklamas — viens attēls. Pievieno saraksta beigās un atgriež visus datus. */
+async function handleUpload(req, res) {
+    if (req.method !== "POST") return send(res, 405, "Metode nav atļauta", { Allow: "POST" });
+    if (state.reklamas.atteli.length >= MAX_REKLAMAS) return send(res, 400, `Var būt ne vairāk kā ${MAX_REKLAMAS} attēli`);
+
+    let buf;
+    try {
+        buf = await readBody(req, MAX_ATTELS);
+    } catch (err) {
+        return send(res, err.status ?? 400, err.status ? "Attēls ir pārāk liels (maks. 15 MB)" : "Neizdevās nolasīt");
+    }
+    const veids = attelaVeids(buf);
+    if (!veids) return send(res, 415, "Atbalstīti tikai PNG, JPG, WEBP un GIF attēli");
+
+    let nosaukums = "";
+    try {
+        nosaukums = decodeURIComponent(String(req.headers["x-faila-nosaukums"] ?? ""));
+    } catch { /* nosaukums nav obligāts */ }
+
+    const id = `${randomBytes(8).toString("hex")}.${veids}`;
+    try {
+        await mkdir(REKLAMU_DIR, { recursive: true });
+        await writeFile(path.join(REKLAMU_DIR, id), buf);
+    } catch (err) {
+        console.error("Neizdevās saglabāt attēlu:", err);
+        return send(res, 500, "Neizdevās saglabāt attēlu");
+    }
+
+    state = {
+        ...state,
+        version: state.version + 1,
+        reklamas: { ...state.reklamas, atteli: [...state.reklamas.atteli, { id, nosaukums: str(nosaukums, 100) }] },
+    };
+    try {
+        await persist(state);
+    } catch (err) {
+        console.error("Neizdevās saglabāt:", err);
+        return send(res, 500, "Neizdevās saglabāt failā");
+    }
+    return sendJson(res, 200, state, { ETag: etagOf(state) });
+}
+
+/** POST /api/parklajumi — tēmas pārklājums (caurspīdīgs attēls). Aizstāj iepriekšējo. */
+async function handleParklajums(req, res) {
+    if (req.method !== "POST") return send(res, 405, "Metode nav atļauta", { Allow: "POST" });
+    let buf;
+    try {
+        buf = await readBody(req, MAX_ATTELS);
+    } catch (err) {
+        return send(res, err.status ?? 400, err.status ? "Attēls ir pārāk liels (maks. 15 MB)" : "Neizdevās nolasīt");
+    }
+    const veids = attelaVeids(buf);
+    if (!veids || veids === "jpg") return send(res, 415, "Pārklājumam vajag caurspīdīgu PNG, WEBP vai GIF attēlu (JPG nevar būt caurspīdīgs)");
+
+    let nosaukums = "";
+    try {
+        nosaukums = decodeURIComponent(String(req.headers["x-faila-nosaukums"] ?? ""));
+    } catch { /* nav obligāts */ }
+
+    const id = `${randomBytes(8).toString("hex")}.${veids}`;
+    try {
+        await mkdir(PARKLAJUMU_DIR, { recursive: true });
+        await writeFile(path.join(PARKLAJUMU_DIR, id), buf);
+    } catch (err) {
+        console.error("Neizdevās saglabāt pārklājumu:", err);
+        return send(res, 500, "Neizdevās saglabāt attēlu");
+    }
+
+    state = {
+        ...state,
+        version: state.version + 1,
+        tema: { ...state.tema, parklajums: { id, nosaukums: str(nosaukums, 100), necaurspidigums: 100 } },
+    };
+    try {
+        await persist(state);
+    } catch (err) {
+        console.error("Neizdevās saglabāt:", err);
+        return send(res, 500, "Neizdevās saglabāt failā");
+    }
+    await notiritParklajumus(state.tema.parklajums); // vecais pārklājums vairs nav vajadzīgs
+    return sendJson(res, 200, state, { ETag: etagOf(state) });
+}
+
+/** GET /api/reklamas/<id> un /api/parklajumi/<id>. id ir nejaušs un nemainīgs, tāpēc drīkst kešot ilgi. */
+async function serveAugsupielade(req, res, dir, idRe, id) {
+    if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, "Metode nav atļauta");
+    if (!idRe.test(id)) return send(res, 404, "Nav atrasts");
+    const file = path.join(dir, id);
+    let info;
+    try {
+        info = await stat(file);
+    } catch {
+        return send(res, 404, "Nav atrasts");
+    }
+    res.writeHead(200, {
+        "Content-Type": MIME[path.extname(id)] ?? "application/octet-stream",
+        "Content-Length": info.size,
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
+    });
+    if (req.method === "HEAD") return res.end();
+    try {
+        await pipeline(createReadStream(file), res);
+    } catch (err) {
+        if (err.code !== "ERR_STREAM_PREMATURE_CLOSE") console.error(err);
+    }
 }
 
 async function serveStatic(req, res, pathname) {
@@ -403,6 +603,10 @@ const server = http.createServer(async (req, res) => {
     try {
         const { pathname } = new URL(req.url ?? "/", "http://localhost");
         if (pathname === API_URL) await handleApi(req, res);
+        else if (pathname === REKLAMU_URL) await handleUpload(req, res);
+        else if (pathname.startsWith(`${REKLAMU_URL}/`)) await serveAugsupielade(req, res, REKLAMU_DIR, REKLAMA_ID_RE, pathname.slice(REKLAMU_URL.length + 1));
+        else if (pathname === PARKLAJUMU_URL) await handleParklajums(req, res);
+        else if (pathname.startsWith(`${PARKLAJUMU_URL}/`)) await serveAugsupielade(req, res, PARKLAJUMU_DIR, PARKLAJUMA_ID_RE, pathname.slice(PARKLAJUMU_URL.length + 1));
         else await serveStatic(req, res, pathname);
     } catch (err) {
         console.error(err);
